@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Slice It! — A Fraction Game</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@600;700;800&display=swap" rel="stylesheet">
+
+<style>
+  /* Palette: soft lilac bg, coral for filled slices, deep plum for accents.
+     Baloo 2 for the chunky/fun headings, Nunito for everything else. */
+  :root{
+    --bg: #F4F0FB;
+    --card: #FFFFFF;
+    --ink: #2B2640;
+    --plum: #5B3A78;
+    --plum-dark: #472c60;
+    --coral: #FF7A59;
+    --coral-soft: #FFE3D8;
+    --success: #2FBF8F;
+    --error: #FF5470;
+    --ring: #E3D9F3;
+  }
+
+  *{ box-sizing: border-box; }
+
+  body{
+    margin:0;
+    min-height:100vh;
+    background:
+      radial-gradient(circle at 15% 10%, #ece3fb 0%, transparent 45%),
+      radial-gradient(circle at 90% 85%, #ffe9e0 0%, transparent 40%),
+      var(--bg);
+    font-family:'Nunito', sans-serif;
+    color:var(--ink);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+  }
+
+  h1, .display{ font-family:'Baloo 2', sans-serif; }
+
+  .topbar{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    width:100%;
+    max-width:460px;
+    margin-bottom:14px;
+    font-weight:800;
+    font-size:14px;
+    color:var(--plum);
+  }
+  .pill{
+    background:var(--card);
+    padding:6px 14px;
+    border-radius:999px;
+    box-shadow:0 2px 6px rgba(91,58,120,0.12);
+  }
+
+  .card{
+    width:100%;
+    max-width:460px;
+    background:var(--card);
+    border-radius:28px;
+    box-shadow:0 20px 45px rgba(91,58,120,0.18);
+    padding:28px 26px 32px;
+    text-align:center;
+    position:relative;
+    overflow:hidden;
+  }
+
+  h1{ font-size:22px; font-weight:700; margin:0 0 4px; }
+  .subtitle{ font-size:13px; color:#8b7fa3; margin:0 0 18px; font-weight:700; }
+
+  .fraction-target{ display:inline-flex; flex-direction:column; align-items:center; margin-bottom:6px; }
+  .frac-num, .frac-den{
+    font-size:34px; font-weight:800; line-height:1.05;
+    font-family:'Baloo 2', sans-serif; color:var(--plum);
+  }
+  .frac-bar{ width:44px; height:3px; background:var(--coral); border-radius:2px; margin:2px 0; }
+
+  .pie-wrap{ position:relative; width:230px; height:230px; margin:14px auto 8px; }
+  #pieSvg{ width:100%; height:100%; display:block; filter: drop-shadow(0 8px 14px rgba(91,58,120,0.18)); }
+  .slice{
+    stroke:#fff; stroke-width:3;
+    transition: fill 0.25s ease, transform 0.28s cubic-bezier(.34,1.56,.64,1);
+    transform-origin: center;
+    cursor:pointer;
+  }
+  .slice.pop{ animation: pop 0.35s cubic-bezier(.34,1.56,.64,1); }
+  @keyframes pop{
+    0%{ transform:scale(1); }
+    45%{ transform:scale(1.14); }
+    100%{ transform:scale(1); }
+  }
+
+  .current-frac{ font-size:14px; font-weight:800; color:#8b7fa3; margin-bottom:18px; }
+  .current-frac span{ color:var(--plum); }
+
+  .controls{ display:flex; gap:14px; justify-content:center; margin-bottom:14px; }
+  .btn{
+    border:none; border-radius:16px; padding:13px 22px;
+    font-family:'Nunito', sans-serif; font-weight:800; font-size:15px;
+    cursor:pointer; display:flex; align-items:center; gap:8px;
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+    box-shadow:0 6px 0 rgba(0,0,0,0.08);
+  }
+  .btn:active{ transform:translateY(3px); box-shadow:0 2px 0 rgba(0,0,0,0.08); }
+  .btn-plum{ background:var(--plum); color:#fff; }
+  .btn-plum:hover{ background:var(--plum-dark); }
+  .btn-outline{ background:#fff; color:var(--plum); border:2px solid var(--ring); box-shadow:none; }
+  .btn-outline:active{ transform:translateY(1px); }
+  .btn:disabled{ opacity:0.4; cursor:not-allowed; }
+  .btn .icon{
+    width:20px; height:20px; border-radius:50%;
+    display:inline-flex; align-items:center; justify-content:center;
+    background:rgba(255,255,255,0.25); font-size:14px; line-height:1;
+  }
+
+  .check-btn{
+    width:100%; background:var(--coral); color:#fff; font-size:16px;
+    padding:14px; border-radius:16px; box-shadow:0 6px 0 #d85f42;
+  }
+  .check-btn:active{ box-shadow:0 2px 0 #d85f42; }
+
+  .feedback{
+    min-height:28px; margin-top:14px; font-weight:800; font-size:15px;
+    border-radius:12px; padding:8px; transition: all 0.2s ease;
+  }
+  .feedback.correct{ color:var(--success); }
+  .feedback.wrong{ color:var(--error); }
+
+  .shake{ animation: shake 0.4s; }
+  @keyframes shake{
+    10%,90%{ transform:translateX(-3px); }
+    20%,80%{ transform:translateX(5px); }
+    30%,50%,70%{ transform:translateX(-8px); }
+    40%,60%{ transform:translateX(8px); }
+  }
+
+  .confetti{ position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; overflow:hidden; }
+  .confetti span{
+    position:absolute; top:-10px; width:8px; height:8px; border-radius:2px;
+    opacity:0.9; animation: fall linear forwards;
+  }
+  @keyframes fall{ to{ transform:translateY(340px) rotate(280deg); opacity:0; } }
+
+  footer{ text-align:center; font-size:12px; color:#a89bc2; margin-top:14px; }
+
+  @media (max-width:480px){ .pie-wrap{ width:190px; height:190px; } }
+</style>
+</head>
+<body>
+
+<div style="width:100%; max-width:460px;">
+  <div class="topbar">
+    <div class="pill">🎯 Level <span id="levelNum">1</span> / <span id="levelTotal">6</span></div>
+    <div class="pill">⭐ Score: <span id="scoreNum">0</span></div>
+  </div>
+
+  <div class="card">
+    <h1>Slice It!</h1>
+    <p class="subtitle">Create the fraction shown below</p>
+
+    <div class="fraction-target">
+      <div class="frac-num" id="targetNum">2</div>
+      <div class="frac-bar"></div>
+      <div class="frac-den" id="targetDen">6</div>
+    </div>
+
+    <div class="pie-wrap">
+      <svg id="pieSvg" viewBox="0 0 200 200"></svg>
+      <div class="confetti" id="confetti"></div>
+    </div>
+
+    <div class="current-frac">You have <span id="currentFrac">0/6</span> pieces shaded</div>
+
+    <div class="controls">
+      <button class="btn btn-outline" id="removeBtn"><span class="icon">–</span> Remove Piece</button>
+      <button class="btn btn-plum" id="addBtn"><span class="icon">+</span> Add Piece</button>
+    </div>
+
+    <button class="btn check-btn" id="checkBtn">Check My Answer</button>
+
+    <div class="feedback" id="feedback"></div>
+  </div>
+
+  <footer>Click a slice directly, or use the buttons — both work!</footer>
+</div>
+
+<script type="module">
+/**
+ * Slice It! — a small fraction game.
+ *
+ * Rewritten in ES6: one class holds all the game state and behavior,
+ * arrow functions everywhere so `this` doesn't get lost in callbacks,
+ * template literals for the little bits of dynamic text, and a couple
+ * of static helpers for the audio/confetti stuff that don't really
+ * belong to the game itself.
+ *
+ * No build step, no imports from anywhere else — just drop this
+ * script tag in the page and go.
+ */
+
+// A tiny helper for the beeps. Doesn't need to know about the game,
+// so it lives outside the class.
+class Beeper {
+  #ctx = new (window.AudioContext || window.webkitAudioContext)();
+
+  // unlock audio on the first click — most browsers block sound until
+  // there's been some user interaction on the page
+  unlock = () => {
+    if (this.#ctx.state === 'suspended') this.#ctx.resume();
+  };
+
+  #tone = (freq, duration, type = 'sine') => {
+    const osc = this.#ctx.createOscillator();
+    const gain = this.#ctx.createGain();
+    osc.type = type;
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.15, this.#ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, this.#ctx.currentTime + duration);
+    osc.connect(gain).connect(this.#ctx.destination);
+    osc.start();
+    osc.stop(this.#ctx.currentTime + duration);
+  };
+
+  add    = () => this.#tone(520, 0.12, 'triangle');
+  remove = () => this.#tone(300, 0.12, 'triangle');
+  wrong  = () => this.#tone(160, 0.25, 'sawtooth');
+  correct = () => {
+    this.#tone(660, 0.12);
+    setTimeout(() => this.#tone(880, 0.18), 110);
+  };
+}
+
+// Little confetti burst — again, doesn't need game state, just a target element.
+const fireConfetti = (container) => {
+  const colors = ['#FF7A59', '#5B3A78', '#2FBF8F', '#FFC93C'];
+  for (let i = 0; i < 24; i++) {
+    const piece = document.createElement('span');
+    piece.style.left = `${Math.random() * 100}%`;
+    piece.style.background = colors[i % colors.length];
+    piece.style.animationDuration = `${0.9 + Math.random() * 0.6}s`;
+    container.appendChild(piece);
+    setTimeout(() => piece.remove(), 1600);
+  }
+};
+
+class FractionGame {
+  // Levels are just target fractions. The denominator also decides
+  // how many slices the pie gets cut into for that level.
+  levels = [
+    { num: 2, den: 6 },
+    { num: 1, den: 4 },
+    { num: 3, den: 8 },
+    { num: 5, den: 6 },
+    { num: 2, den: 3 },
+    { num: 3, den: 5 },
+  ];
+
+  levelIndex = 0;
+  filledCount = 0;
+  score = 0;
+  locked = false; // true while a correct/wrong message is on screen
+
+  constructor(root = document) {
+    this.root = root;
+    this.beeper = new Beeper();
+
+    // Grab every element we'll touch more than once. Doing this up
+    // front means the rest of the class just reads like plain logic.
+    this.el = {
+      pieSvg:      root.getElementById('pieSvg'),
+      targetNum:   root.getElementById('targetNum'),
+      targetDen:   root.getElementById('targetDen'),
+      currentFrac: root.getElementById('currentFrac'),
+      addBtn:      root.getElementById('addBtn'),
+      removeBtn:   root.getElementById('removeBtn'),
+      checkBtn:    root.getElementById('checkBtn'),
+      feedback:    root.getElementById('feedback'),
+      levelNum:    root.getElementById('levelNum'),
+      levelTotal:  root.getElementById('levelTotal'),
+      score:       root.getElementById('scoreNum'),
+      confetti:    root.getElementById('confetti'),
+    };
+
+    this.el.levelTotal.textContent = this.levels.length;
+    this.#bindEvents();
+    this.#loadLevel(this.levelIndex);
+  }
+
+  get currentLevel() {
+    return this.levels[this.levelIndex];
+  }
+
+  #bindEvents() {
+    this.el.addBtn.addEventListener('click', this.addPiece);
+    this.el.removeBtn.addEventListener('click', this.removePiece);
+    this.el.checkBtn.addEventListener('click', this.checkAnswer);
+    document.body.addEventListener('click', this.beeper.unlock, { once: true });
+  }
+
+  // ---- drawing the pie -------------------------------------------------
+
+  #drawPie(den) {
+    const svg = this.el.pieSvg;
+    svg.innerHTML = '';
+
+    const cx = 100, cy = 100, r = 92;
+    const anglePer = (2 * Math.PI) / den;
+
+    for (let i = 0; i < den; i++) {
+      const start = i * anglePer - Math.PI / 2; // 12 o'clock start, like a clock face
+      const end = start + anglePer;
+
+      const x1 = cx + r * Math.cos(start);
+      const y1 = cy + r * Math.sin(start);
+      const x2 = cx + r * Math.cos(end);
+      const y2 = cy + r * Math.sin(end);
+      const largeArc = anglePer > Math.PI ? 1 : 0;
+
+      const d = `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2} Z`;
+
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', d);
+      path.setAttribute('class', 'slice');
+      path.setAttribute('fill', '#FFE3D8');
+      path.dataset.index = i;
+      path.addEventListener('click', () => this.#handleSliceClick(i));
+
+      svg.appendChild(path);
+    }
+  }
+
+  // slices fill in order (0, 1, 2...) so "add = first unshaded" and
+  // "remove = last shaded" both just boil down to filledCount
+  #paintSlices = () => {
+    this.el.pieSvg.querySelectorAll('.slice').forEach((slice, i) => {
+      slice.setAttribute('fill', i < this.filledCount ? '#FF7A59' : '#FFE3D8');
+    });
+  };
+
+  #bounce = (index) => {
+    const slice = this.el.pieSvg.querySelector(`.slice[data-index="${index}"]`);
+    if (!slice) return;
+    slice.classList.remove('pop');
+    void slice.offsetWidth; // force reflow so the animation replays
+    slice.classList.add('pop');
+  };
+
+  // ---- level / UI state --------------------------------------------------
+
+  #loadLevel(index) {
+    const level = this.levels[index];
+    this.filledCount = 0;
+
+    this.el.targetNum.textContent = level.num;
+    this.el.targetDen.textContent = level.den;
+    this.el.levelNum.textContent = index + 1;
+    this.el.feedback.textContent = '';
+    this.el.feedback.className = 'feedback';
+
+    this.#drawPie(level.den);
+    this.#syncLabels();
+  }
+
+  #syncLabels() {
+    const { den } = this.currentLevel;
+    this.el.currentFrac.textContent = `${this.filledCount}/${den}`;
+    this.el.addBtn.disabled = this.filledCount >= den;
+    this.el.removeBtn.disabled = this.filledCount <= 0;
+  }
+
+  // ---- player actions -----------------------------------------------------
+
+  addPiece = () => {
+    if (this.locked) return;
+    const { den } = this.currentLevel;
+    if (this.filledCount >= den) return;
+
+    this.#bounce(this.filledCount);
+    this.filledCount++;
+    this.#paintSlices();
+    this.#syncLabels();
+    this.beeper.add();
+  };
+
+  removePiece = () => {
+    if (this.locked || this.filledCount <= 0) return;
+
+    this.filledCount--;
+    this.#bounce(this.filledCount);
+    this.#paintSlices();
+    this.#syncLabels();
+    this.beeper.remove();
+  };
+
+  // clicking a slice fills everything up to it, or removes the last
+  // one if you click the slice that's already the last filled
+  #handleSliceClick = (index) => {
+    if (this.locked) return;
+    if (index === this.filledCount - 1) {
+      this.removePiece();
+    } else if (index >= this.filledCount) {
+      while (this.filledCount <= index) this.addPiece();
+    }
+  };
+
+  checkAnswer = () => {
+    if (this.locked) return;
+
+    const { num, den } = this.currentLevel;
+    const isCorrect = this.filledCount === num;
+    this.locked = true;
+    this.el.feedback.classList.remove('shake');
+
+    if (isCorrect) {
+      this.score += 10;
+      this.el.score.textContent = this.score;
+      this.el.feedback.textContent = '🎉 Correct! Great job!';
+      this.el.feedback.className = 'feedback correct';
+      this.beeper.correct();
+      fireConfetti(this.el.confetti);
+
+      setTimeout(() => {
+        this.locked = false;
+        this.levelIndex = (this.levelIndex + 1) % this.levels.length; // wrap back to level 1
+        this.#loadLevel(this.levelIndex);
+      }, 1300);
+    } else {
+      this.el.feedback.textContent = `Not quite — you made ${this.filledCount}/${den}. Try again!`;
+      this.el.feedback.className = 'feedback wrong shake';
+      this.beeper.wrong();
+      setTimeout(() => { this.locked = false; }, 500);
+    }
+  };
+}
+
+// go
+new FractionGame(document);
+</script>
+</body>
+</html>
